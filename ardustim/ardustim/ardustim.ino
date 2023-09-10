@@ -519,7 +519,7 @@ void get_prescaler_bits(uint32_t *potential_oc_value, uint8_t *prescaler, uint8_
 sweep_step *build_sweep_steps(uint32_t *low_rpm_tcnt, uint32_t *high_rpm_tcnt, uint8_t *total_stages)
 {
   sweep_step *steps;
-  uint8_t prescaler_bits;
+//  uint8_t prescaler_bits;
   uint8_t bitshift;
   uint32_t tmp = *low_rpm_tcnt;
   /* DEBUG

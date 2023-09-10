@@ -55,6 +55,43 @@ extern volatile uint32_t oc_remainder;
 bool cmdPending;
 byte currentCommand;
 uint16_t numTeeth;
+bool interactive_mode=false;
+
+// The command line text strings
+const char Ardu_Stim_Commandline[] = "Ardu-Stim Command line";
+const char a_no_op[] = "a = no-op";
+const char i_interactive_mode[] = "i = interactive mode";
+const char h_help[] = "h = This help";
+const char f_fixed_rpm[] = "f = fixed rpm";
+const char c_save_configuration[] = "c = Save confguration";
+const char C_show_configuration[] = "C = Show configturation";
+const char L_list_wheels[] = "L = List of wheel descriptions";
+const char M_rpm_mode[] = "M = change rpm mode, 0 = fixed, 1 = sweep, 2 = potentiometer";
+const char n_number_of_wheels[] = "n = Number of wheels";
+const char N_number_of_current_wheel[] = "N = Number of the current wheel";
+const char p_size_of_wheel[] = "p = Size of wheel in edges";
+const char P_pattern[] = "P = Pattern of wheel";
+const char R_rpm[] = "R = RPM";
+const char s_sweep_mode[] = "s = set high and low for sweep mode";
+const char S_set_wheel[] = "S = set the wheel number";
+const char X_set_next_wheel[] = "X = set to the next wheel";
+
+const char Interactive_mode[] = "Interactive Mode on";
+const char no_op_ok[] = "no-op OK";
+const char setting_fixed_rpm_to[] = "Setting fixed RPM to: ";
+const char Which_wheel[] = "Current Wheel number: is ";
+const char colon_space[] = ": ";
+const char Wheel_size[] = "Wheel size in edges: ";
+const char Wheel_pattern[] = "Pattern: ";
+const char Stimulate_mode[] = "Stimulate Mode: ";
+const char space_dash_space[] = " - ";
+const char linear_swept[] = "Linear Swept  ";
+const char comma_space[] = ", ";
+const char fixed_rpm[] = "Fixed RPM  ";
+const char Potentiometer[] = "Potentiometer";
+const char comma[] = ",";
+const char Degrees[] = "Degrees: ";
+const char RPM[] = "RPM: ";
 
 //! Initializes the serial port and sets up the Menu
 /*!
@@ -71,19 +108,73 @@ void serialSetup()
 void commandParser()
 {
   char buf[80];
+  char *bp;
   byte tmp_wheel;
   byte tmp_mode;
+  byte h,l;
+  uint16_t x;
   if (cmdPending == false) { currentCommand = Serial.read(); }
 
   switch (currentCommand)
   {
-    case 'a':
+    case 'a': //no-op
+      if (interactive_mode) {
+        strcpy(buf,no_op_ok);
+        Serial.println(buf);
+      }
       break;
 
+    case 'i': //Set interactive mode. Tottle on/off
+      interactive_mode = !interactive_mode;
+      if (interactive_mode) {
+        strcpy(buf,Interactive_mode);
+        Serial.println(buf);
+      }
+      break;
+
+    case 'h': // Help
+      if (interactive_mode) {
+        Serial.println(Ardu_Stim_Commandline);
+        Serial.println(a_no_op);
+        Serial.println(i_interactive_mode);
+        Serial.println(h_help);
+        Serial.println(f_fixed_rpm);
+        Serial.println(c_save_configuration);
+        Serial.println(C_show_configuration);
+        Serial.println(L_list_wheels);
+        Serial.println(M_rpm_mode);
+        Serial.println(n_number_of_wheels);
+        Serial.println(N_number_of_current_wheel);
+        Serial.println(p_size_of_wheel);
+        Serial.println(P_pattern);
+        Serial.println(R_rpm);
+        Serial.println(s_sweep_mode);
+        Serial.println(S_set_wheel);
+        Serial.println(X_set_next_wheel);
+      }
+      break;
     case 'f': //Set the fixed RPM value
       mode = FIXED_RPM;
-      while(Serial.available() < 2) {} //Wait for the new RPM bytes
-      wanted_rpm = word(Serial.read(), Serial.read());
+      while(Serial.available() < 2) {delay(1);} //Wait for the new RPM bytes, 2 if binary, more if ascii.
+      buf[0] = Serial.read();
+      buf[1] = Serial.read();
+      if(buf[0] >= '0') {  // Fixed RPM value was sent in ascii
+        //Retrieve and parse fixed ASCII to wanted_rpm
+        for(x=2;Serial.available() > 0; ++x) {
+          buf[x] = Serial.read();
+        }
+        buf[x] = 0;
+//        Serial.println(buf);
+        wanted_rpm = strtoul(buf, NULL, 10);
+      } else {
+        h = buf[0];
+        l = buf[1];
+        wanted_rpm = word(h, l);
+      }
+      if(interactive_mode) {
+        Serial.print(setting_fixed_rpm_to);
+        Serial.println(wanted_rpm);
+      }
       //wanted_rpm = 2000;
       //reset_new_OCR1A(wanted_rpm);
       setRPM(wanted_rpm);
@@ -91,6 +182,57 @@ void commandParser()
 
     case 'c': //Save the current config
       saveConfig();
+      break;
+
+    case 'C': //Show the current config
+      Serial.print(Stimulate_mode);
+      Serial.print(mode);
+      Serial.print(space_dash_space);
+      switch(mode) {
+        case 0: // Linear swept
+          Serial.print(linear_swept);
+          Serial.print(sweep_low_rpm);
+          Serial.print(comma_space);
+          Serial.println(sweep_high_rpm);
+          break;
+      
+        case 1: // Fixed
+          Serial.print(fixed_rpm);
+          Serial.println(wanted_rpm);
+          break;
+        
+        case 2: // Potentiomenter
+          Serial.println(Potentiometer);
+          break;
+        
+        default:
+          break;
+      }
+
+      Serial.print(Which_wheel);
+      Serial.print(selected_wheel);
+      Serial.print(colon_space);
+      strcpy_P(buf,Wheels[selected_wheel].decoder_name);
+      Serial.println(buf);
+      numTeeth = pgm_read_word(Wheels[selected_wheel].wheel_max_edges);
+      //PROGMEM_readAnything (&table[i], thisOne);
+      Serial.print(Wheel_size);
+      Serial.println(Wheels[selected_wheel].wheel_max_edges);
+      Serial.print(Wheel_pattern);
+      for(x=0; x<Wheels[selected_wheel].wheel_max_edges; x++)
+      {
+        if(x != 0) { Serial.print(comma); }
+
+        byte tempByte = pgm_read_byte(&Wheels[selected_wheel].edge_states_ptr[x]);
+        Serial.print(tempByte);
+      }
+      Serial.println("");
+      //2nd row of data sent is the number of degrees the wheel runs over (360 or 720 typically)
+      Serial.print(Degrees);
+      Serial.println(Wheels[selected_wheel].wheel_degrees);
+      
+      Serial.print(RPM);
+      Serial.println(wanted_rpm);
       break;
       
     case 'L': // send the list of wheel names
@@ -100,6 +242,10 @@ void commandParser()
       //Wheel names are then sent 1 per line
       for(byte x=0;x<MAX_WHEELS;x++)
       {
+        if (interactive_mode) {
+          Serial.print(x);
+          Serial.print(colon_space);
+        }
         strcpy_P(buf,Wheels[x].decoder_name);
         Serial.println(buf);
       }
@@ -108,9 +254,16 @@ void commandParser()
     case 'M': ///Change the RPM mode
       while(Serial.available() < 1) {} //Wait for the new mode byte
       tmp_mode = Serial.read();
+      if (tmp_mode >= '0') {  // Was the mode entered as ASCII digit?
+        tmp_mode -= '0';      // Convert it to numeric equivalent
+      }
       if(tmp_mode <= POT_RPM)
       {
         mode = tmp_mode;
+      }
+      if (interactive_mode) {
+        Serial.print(Stimulate_mode);
+        Serial.println(mode);
       }
       break;
 
@@ -131,7 +284,7 @@ void commandParser()
       //PROGMEM_readAnything (&table[i], thisOne);
       for(uint16_t x=0; x<Wheels[selected_wheel].wheel_max_edges; x++)
       {
-        if(x != 0) { Serial.print(","); }
+        if(x != 0) { Serial.print(comma); }
 
         byte tempByte = pgm_read_byte(&Wheels[selected_wheel].edge_states_ptr[x]);
         Serial.print(tempByte);
@@ -147,14 +300,55 @@ void commandParser()
 
     case 's': //Set the high and low RPM for sweep mode
       mode = LINEAR_SWEPT_RPM;
-      while(Serial.available() < 4) {} //Wait for 4 bytes representing the new low and high RPMs
+      while(Serial.available() < 4) {delay(1);}  // Wait for at least 4 bytes in the buffer representing the new low and high RPMs
+      bp = buf;
+      x=0;  //set the offset pointer for the first character
+      while(Serial.available()) {
+       //Retrieve and parse fixed ASCII to wanted_rpm
+        buf[x] = Serial.read();
+//        Serial.print(buf[x]);
+        delay(1);
+        ++x;
+      }
+      buf[x] = 0;   // Terminate the string normally
+      if(buf[0] >= '0') {   // Sweep RPM value was sent in ascii
+        for(uint16_t i=0; i < x; i++) {
+//          Serial.print(buf[i]);
+          if(buf[i] == ' ') {
+//            Serial.print(": delimeter found. Terminating string");
+            buf[i] = 0;     // terminate the first parameter
+            bp = buf+i+1;   // set the pointer to the second parameter
+          }
+          if(buf[i] <= 32) {// Check for trailing cr/lf and convert to string termination if needed
+            buf[i] = 0;
+          }
+//          Serial.println("");
+        }
+//        Serial.println(buf);
+//        Serial.println(bp);
+        sweep_low_rpm = strtoul(buf, NULL, 10);
+        sweep_high_rpm = strtoul(bp, NULL, 10);
+//        Serial.println(sweep_low_rpm);
+//        Serial.println(sweep_high_rpm);
+//        sweep_low_rpm = 100;
+//        sweep_high_rpm = 4000;
 
-      sweep_low_rpm = word(Serial.read(), Serial.read());
-      sweep_high_rpm = word(Serial.read(), Serial.read());
+      } else {
+        h = buf[0];
+        l = buf[1];
+        sweep_low_rpm = word(h, l);
+        h = buf[2];
+        l = buf[3];
+        sweep_high_rpm = word(h, l);
+      }
 
-      sweep_low_rpm = 100;
-      sweep_high_rpm = 4000;
       compute_sweep_stages(&sweep_low_rpm, &sweep_high_rpm);
+      if (interactive_mode) {
+        Serial.print(linear_swept);
+        Serial.print(sweep_low_rpm);
+        Serial.print(comma_space);
+        Serial.println(sweep_high_rpm);
+      }
       break;
 
     case 'S': //Set the current wheel
@@ -317,7 +511,7 @@ void reverse_wheel_direction_cb()
 void sweep_rpm_cb(uint16_t tmp_low_rpm, uint16_t tmp_high_rpm)
 {
   
-  char sweep_buffer[20] = {0};
+//  char sweep_buffer[20] = {0};
 
   // Validate input ranges
   if (
@@ -338,17 +532,17 @@ void compute_sweep_stages(uint16_t *tmp_low_rpm, uint16_t *tmp_high_rpm)
 {
   uint8_t j;
   uint8_t total_stages;
-  uint16_t end_tcnt;
+//  uint16_t end_tcnt;
   uint32_t low_rpm_tcnt;
   uint32_t high_rpm_tcnt;
   uint16_t this_step_low_rpm;
   uint16_t this_step_high_rpm;
-  uint16_t divisor;
+//  uint16_t divisor;
   uint16_t steps;
   uint32_t scaled_remainder;
   uint16_t rpm_span_this_stage;
   float per_isr_tcnt_change;
-  float rpm_per_isr;
+//  float rpm_per_isr;
 
   /* Spin until unlocked, then lock */
   while (sweep_lock)
@@ -444,4 +638,3 @@ void compute_sweep_stages(uint16_t *tmp_low_rpm, uint16_t *tmp_high_rpm)
   sweep_low_rpm = *tmp_low_rpm;
   sweep_lock = false;
 }
-

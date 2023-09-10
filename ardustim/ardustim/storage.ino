@@ -11,7 +11,7 @@ void loadConfig()
   //if(true)
   {
     //New arduino
-    selected_wheel = 5; //36-1
+    selected_wheel = THIRTY_SIX_MINUS_ONE; //36-1
     wanted_rpm = 3000;
     mode = POT_RPM;
   }
