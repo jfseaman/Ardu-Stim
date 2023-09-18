@@ -331,10 +331,7 @@ void commandParser()
           break;
       }
       // Fix up ron shift
-      set_rpm_shift = TMP_RPM_SHIFT;  // set the shift for max rpm of 16384 (bit shift of 4 from adc0
-      if (set_rpm_cap <= 8192) set_rpm_shift = 3;
-      if (set_rpm_cap <= 4096) set_rpm_shift = 2;
-      if (set_rpm_cap <= 2048) set_rpm_shift = 1;
+      SetRpmShift();
       break;
 
 

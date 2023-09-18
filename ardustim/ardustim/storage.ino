@@ -23,11 +23,16 @@ void loadConfig()
     byte highByte = EEPROM.read(EEPROM_CURRENT_RPM);
     byte lowByte =  EEPROM.read(EEPROM_CURRENT_RPM+1);
     wanted_rpm = word(highByte, lowByte);
+    highByte = EEPROM.read(EEPROM_CURRENT_MAX);
+    lowByte =  EEPROM.read(EEPROM_CURRENT_MAX+1);
+    set_rpm_cap = word(highByte, lowByte);
+    if (set_rpm_cap > TMP_RPM_CAP) set_rpm_cap = TMP_RPM_CAP;
+    SetRpmShift();
 
     //Error checking
     if(selected_wheel >= MAX_WHEELS) { selected_wheel = 5; }
     if(mode >= MAX_MODES) { mode = FIXED_RPM; }
-    if(wanted_rpm > 15000) { wanted_rpm = 4000; }
+    if(wanted_rpm > TMP_RPM_CAP) wanted_rpm = 3000; // The rpm stored in EEPROM was unreasonable set it to middle ground.
   }
 }
 
@@ -41,4 +46,8 @@ void saveConfig()
   byte lowByte = lowByte(wanted_rpm);
   EEPROM.update(EEPROM_CURRENT_RPM, highByte);
   EEPROM.update(EEPROM_CURRENT_RPM+1, lowByte);
+  highByte = highByte(set_rpm_cap);
+  lowByte = lowByte(set_rpm_cap);
+  EEPROM.update(EEPROM_CURRENT_MAX, highByte);
+  EEPROM.update(EEPROM_CURRENT_MAX+1, lowByte);
 }

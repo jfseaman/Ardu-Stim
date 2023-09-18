@@ -129,6 +129,7 @@ wheels Wheels[MAX_WHEELS] = {
 void setup() {
   serialSetup();
   loadConfig();
+  SetRpmShift();
 
   cli(); // stop interrupts
 
@@ -556,4 +557,12 @@ sweep_step *build_sweep_steps(uint32_t *low_rpm_tcnt, uint32_t *high_rpm_tcnt, u
     */
   }
   return steps;
+}
+
+// Adjust the bit shift for adc0 value to rpm in POT_MODE
+void SetRpmShift() {
+    set_rpm_shift = TMP_RPM_SHIFT;  // set the shift for max rpm of 16384 (bit shift of 4 from adc0
+    if (set_rpm_cap <= 8192) set_rpm_shift = 3;
+    if (set_rpm_cap <= 4096) set_rpm_shift = 2;
+    if (set_rpm_cap <= 2048) set_rpm_shift = 1;
 }
