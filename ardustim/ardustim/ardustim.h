@@ -36,6 +36,7 @@ uint8_t get_bitshift_from_prescaler(uint8_t *);
 void get_prescaler_bits(uint32_t *, uint8_t *, uint8_t *);
 
 extern volatile uint8_t mode;
+extern volatile uint16_t set_rpm_cap;
 
 /* Prototypes */
 

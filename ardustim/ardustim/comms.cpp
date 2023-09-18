@@ -64,22 +64,24 @@ const char adc0_text[] = "a = ADC0 value";
 const char i_interactive_mode[] = "i = interactive mode";
 const char h_help[] = "h,? = This help";
 const char f_fixed_rpm[] = "f = fixed rpm";
-const char c_save_configuration[] = "c = Save confguration";
-const char C_show_configuration[] = "C = Show configturation";
-const char L_list_wheels[] = "L = List of wheel descriptions";
-const char M_rpm_mode[] = "M = change rpm mode, 0 = fixed, 1 = sweep, 2 = potentiometer";
-const char n_number_of_wheels[] = "n = Number of wheels";
-const char N_number_of_current_wheel[] = "N = Number of the current wheel";
+const char c_save_configuration[] = "c = Save config";
+const char C_show_configuration[] = "C = Show config";
+const char L_list_wheels[] = "L = List of wheel defs";
+const char m_rpm_max[] = "m = set max rpm"; 
+const char M_rpm_mode[] = "M = change rpm mode, 0 = fixed, 1 = sweep, 2 = pot";
+const char n_number_of_wheels[] = "n = # of wheels";
+const char N_number_of_current_wheel[] = "N = # of the current wheel";
 const char p_size_of_wheel[] = "p = Size of wheel in edges";
 const char P_pattern[] = "P = Pattern of wheel";
 const char R_rpm[] = "R = RPM";
-const char s_sweep_mode[] = "s = set high and low for sweep mode";
-const char S_set_wheel[] = "S = set the wheel number";
-const char X_set_next_wheel[] = "X = set to the next wheel";
+const char s_sweep_mode[] = "s = set low,high for sweep";
+const char S_set_wheel[] = "S = set the wheel";
+//const char X_set_next_wheel[] = "X = set to the next wheel";
 
 const char Interactive_mode[] = "Interactive Mode on";
 const char adc0_value[] = "ADC0";
 const char setting_fixed_rpm_to[] = "Set fixed RPM to";
+const char setting_max_rpm_to[] = "Set max RPM to";
 const char Which_wheel[] = "Current number is";
 const char colon_space[] = ": ";
 const char Wheel_size[] = "Wheel edges";
@@ -93,6 +95,7 @@ const char Potentiometer[] = "Potentiometer";
 const char comma[] = ",";
 const char Degrees[] = "Degrees";
 const char RPM[] = "RPM";
+const char RPM_MAX[] = "Max RPM";
 
 //! Initializes the serial port and sets up the Menu
 /*!
@@ -144,6 +147,7 @@ void commandParser()
         Serial.println(c_save_configuration);
         Serial.println(C_show_configuration);
         Serial.println(L_list_wheels);
+        Serial.println(m_rpm_max);
         Serial.println(M_rpm_mode);
         Serial.println(n_number_of_wheels);
         Serial.println(N_number_of_current_wheel);
@@ -152,7 +156,7 @@ void commandParser()
         Serial.println(R_rpm);
         Serial.println(s_sweep_mode);
         Serial.println(S_set_wheel);
-        Serial.println(X_set_next_wheel);
+//        Serial.println(X_set_next_wheel);
       }
       break;
     case 'f': //Set the fixed RPM value
@@ -242,11 +246,16 @@ void commandParser()
       Serial.print(colon_space);
       Serial.println(Wheels[selected_wheel].wheel_degrees);
       
+      Serial.print(RPM_MAX);
+      Serial.print(colon_space);
+      Serial.print(set_rpm_cap);
+      Serial.print(comma_space);
       Serial.print(RPM);
       Serial.print(colon_space);
       Serial.println(wanted_rpm);
     
       Serial.print(linear_swept);
+      Serial.print(colon_space);
       Serial.print(sweep_low_rpm);
       Serial.print(comma_space);
       Serial.println(sweep_high_rpm);
@@ -271,6 +280,59 @@ void commandParser()
         Serial.println(buf);
       }
       break;
+
+    case 'm': //Set the max RPM value
+      while(Serial.available() < 2) {delay(1);} //Wait for the new RPM bytes, 2 if binary, more if ascii.
+      buf[0] = Serial.read();
+      buf[1] = Serial.read();
+      if(buf[0] >= '0') {  // Max RPM value was sent in ascii
+        //Retrieve and parse fixed ASCII to set_rpm_max
+        for(x=2;Serial.available() > 0; ++x) {
+          buf[x] = Serial.read();
+        }
+        buf[x] = 0;
+//        Serial.println(buf);
+        set_rpm_cap = strtoul(buf, NULL, 10);
+      } else {
+        h = buf[0];
+        l = buf[1];
+        set_rpm_cap = word(h, l);
+      }
+      if (set_rpm_cap < 1000) set_rpm_cap = 1000; // Do not allow max rpm less than 1000 because no engine will have that.
+      if (set_rpm_cap > TMP_RPM_CAP) set_rpm_cap = TMP_RPM_CAP; // make sure we are below uint...
+      
+      if(interactive_mode) {
+        Serial.print(setting_max_rpm_to);
+        Serial.print(colon_space);
+        Serial.println(set_rpm_cap);
+      }
+      //wanted_rpm = 2000;
+      //reset_new_OCR1A(wanted_rpm);
+
+      // Fix up any rpms set
+      switch(mode) {
+        case LINEAR_SWEPT_RPM:
+          //  Sanity checks simple
+          if (sweep_low_rpm < 100) sweep_low_rpm = 100;
+          if (sweep_low_rpm > set_rpm_cap) sweep_low_rpm = 100;
+          if (sweep_high_rpm < sweep_low_rpm) sweep_high_rpm = 4000;
+          if (sweep_high_rpm > set_rpm_cap) sweep_high_rpm = set_rpm_cap;
+          compute_sweep_stages(&sweep_low_rpm, &sweep_high_rpm);
+          break;
+          
+        case FIXED_RPM: // make sure fixed
+        case POT_RPM:   // and pot  rpm is below new max
+          if(wanted_rpm > set_rpm_cap) {
+            wanted_rpm = set_rpm_cap;
+            setRPM(wanted_rpm);
+          }
+          break;
+          
+        default:
+          break;
+      }
+      break;
+
 
     case 'M': ///Change the RPM mode
       while(Serial.available() < 1) {} //Wait for the new mode byte
@@ -363,10 +425,15 @@ void commandParser()
         l = buf[3];
         sweep_high_rpm = word(h, l);
       }
-
+      //  Sanity checks simple
+      if (sweep_low_rpm < 100) sweep_low_rpm = 100;
+      if (sweep_low_rpm > set_rpm_cap) sweep_low_rpm = 100;
+      if (sweep_high_rpm < sweep_low_rpm) sweep_high_rpm = 4000;
+      if (sweep_high_rpm > set_rpm_cap) sweep_high_rpm = set_rpm_cap;
       compute_sweep_stages(&sweep_low_rpm, &sweep_high_rpm);
       if (interactive_mode) {
         Serial.print(linear_swept);
+        Serial.print(colon_space);
         Serial.print(sweep_low_rpm);
         Serial.print(comma_space);
         Serial.println(sweep_high_rpm);
@@ -383,11 +450,11 @@ void commandParser()
       }
       break;
 
-    case 'X': //Just a test method for switching the to the next wheel
-      select_next_wheel_cb();
-      strcpy_P(buf,Wheels[selected_wheel].decoder_name);
-      Serial.println(buf);
-      break;
+//    case 'X': //Just a test method for switching the to the next wheel
+//      select_next_wheel_cb();
+//      strcpy_P(buf,Wheels[selected_wheel].decoder_name);
+//      Serial.println(buf);
+//      break;
 
     default:
       break;
