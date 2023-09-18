@@ -298,7 +298,7 @@ void commandParser()
         l = buf[1];
         set_rpm_cap = word(h, l);
       }
-      if (set_rpm_cap < 1000) set_rpm_cap = 1000; // Do not allow max rpm less than 1000 because no engine will have that.
+      if (set_rpm_cap < 1024) set_rpm_cap = 1024; // Do not allow max rpm less than 1024 because no engine will have that and the tps value from the pot is that
       if (set_rpm_cap > TMP_RPM_CAP) set_rpm_cap = TMP_RPM_CAP; // make sure we are below uint...
       
       if(interactive_mode) {
@@ -309,7 +309,6 @@ void commandParser()
       //wanted_rpm = 2000;
       //reset_new_OCR1A(wanted_rpm);
 
-      // Fix up any rpms set
       switch(mode) {
         case LINEAR_SWEPT_RPM:
           //  Sanity checks simple
@@ -331,6 +330,11 @@ void commandParser()
         default:
           break;
       }
+      // Fix up ron shift
+      set_rpm_shift = TMP_RPM_SHIFT;  // set the shift for max rpm of 16384 (bit shift of 4 from adc0
+      if (set_rpm_cap <= 8192) set_rpm_shift = 3;
+      if (set_rpm_cap <= 4096) set_rpm_shift = 2;
+      if (set_rpm_cap <= 2048) set_rpm_shift = 1;
       break;
 
 

@@ -51,6 +51,7 @@ volatile uint8_t prescaler_bits = 0;
 volatile uint8_t last_prescaler_bits = 0;
 volatile uint8_t mode = 0;
 volatile uint16_t set_rpm_cap = TMP_RPM_CAP;  // Adjustable max rpm
+volatile uint8_t set_rpm_shift = TMP_RPM_SHIFT; // Adjustable rpm shift for use with adjustable max
 volatile uint16_t new_OCR1A = 5000; /* sane default */
 volatile uint16_t edge_counter = 0;
 
@@ -410,7 +411,7 @@ void loop()
     if (adc0_read_complete == true)
     {
       adc0_read_complete = false;
-      tmp_rpm = adc0 << TMP_RPM_SHIFT;
+      tmp_rpm = adc0 << set_rpm_shift;
       if (tmp_rpm > set_rpm_cap) { tmp_rpm = set_rpm_cap; }
       wanted_rpm = tmp_rpm;
       reset_new_OCR1A(tmp_rpm);
