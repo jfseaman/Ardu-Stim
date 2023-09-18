@@ -202,13 +202,13 @@ void setup() {
   // Without this, the internal interrupt will not trigger.
   ADCSRA |= B00001000;
 
-//  pinMode(7, OUTPUT); /* Debug pin for Saleae to track sweep ISR execution speed */
-  pinMode(8, OUTPUT); /* Primary (crank usually) output */
-  pinMode(9, OUTPUT); /* Secondary (cam usually) output */
-  pinMode(10, OUTPUT); /* Knock signal for seank, ony on LS1 pattern, NOT IMPL YET */
-#if defined(__AVR_ATmega1280__) || defined(__AVR_ATmega2560__)
-  pinMode(53, OUTPUT); 
-  pinMode(52, OUTPUT); 
+  pinMode(PRIMARY_CRANK_PIN, OUTPUT); /* Primary (crank usually) output */
+  pinMode(PRIMARY_CAM_PIN, OUTPUT); /* Secondary (cam usually) output */
+#ifdef DEBUG_PIN
+  pinMode(DEBUG_PIN, OUTPUT); /* Debug pin for Saleae to track sweep ISR execution speed */
+#endif
+#ifdef KNOCK_SIGNAL_PIN
+  pinMode(KNOCK_SIGNAL_PIN, OUTPUT); /* Knock signal for seank, ony on LS1 pattern, NOT IMPL YET */
 #endif
 
   sei(); // Enable interrupts

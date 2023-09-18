@@ -32,4 +32,14 @@
 
 #define EEPROM_LAST_MODE  100
 
+//#define DEBUG_PIN         7   /* Debug pin for Saleae to track sweep ISR execution speed */
+#if defined(__AVR_ATmega1280__) || defined(__AVR_ATmega2560__)
+  #define PRIMARY_CRANK_PIN 53
+  #define PRIMARY_CAM_PIN   52
+#else
+  #define PRIMARY_CRANK_PIN 8
+  #define PRIMARY_CAM_PIN   9
+
+#endif
+//#define KNOCK_SIGNAL_PIN  10 // Knock signal for seank, ony on LS1 pattern, NOT IMPL YET
 #endif

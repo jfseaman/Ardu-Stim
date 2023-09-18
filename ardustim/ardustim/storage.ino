@@ -7,10 +7,10 @@
 
 void loadConfig()
 {
-  if(EEPROM.read(EEPROM_VERSION) == 255)
-  //if(true)
+  if(EEPROM.read(EEPROM_VERSION) == 255)  //New arduino signature "erased" EEPROM is set to FF
+  //if(true) // A code option to force reinitialization
   {
-    //New arduino
+    
     selected_wheel = THIRTY_SIX_MINUS_ONE; //36-1
     wanted_rpm = 3000;
     mode = POT_RPM;

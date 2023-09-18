@@ -40,6 +40,7 @@ extern uint8_t total_sweep_stages;
 extern uint16_t sweep_low_rpm;
 extern uint16_t sweep_high_rpm;
 extern uint16_t sweep_rate;
+extern uint16_t adc0;
 
 /* Volatile variables (USED in ISR's) */
 extern volatile uint8_t selected_wheel;
@@ -59,9 +60,9 @@ bool interactive_mode=false;
 
 // The command line text strings
 const char Ardu_Stim_Commandline[] = "Ardu-Stim Command line";
-const char a_no_op[] = "a = no-op";
+const char adc0_text[] = "a = ADC0 value";
 const char i_interactive_mode[] = "i = interactive mode";
-const char h_help[] = "h = This help";
+const char h_help[] = "h,? = This help";
 const char f_fixed_rpm[] = "f = fixed rpm";
 const char c_save_configuration[] = "c = Save confguration";
 const char C_show_configuration[] = "C = Show configturation";
@@ -77,21 +78,21 @@ const char S_set_wheel[] = "S = set the wheel number";
 const char X_set_next_wheel[] = "X = set to the next wheel";
 
 const char Interactive_mode[] = "Interactive Mode on";
-const char no_op_ok[] = "no-op OK";
-const char setting_fixed_rpm_to[] = "Setting fixed RPM to: ";
-const char Which_wheel[] = "Current Wheel number: is ";
+const char adc0_value[] = "ADC0";
+const char setting_fixed_rpm_to[] = "Set fixed RPM to";
+const char Which_wheel[] = "Current number is";
 const char colon_space[] = ": ";
-const char Wheel_size[] = "Wheel size in edges: ";
-const char Wheel_pattern[] = "Pattern: ";
-const char Stimulate_mode[] = "Stimulate Mode: ";
+const char Wheel_size[] = "Wheel edges";
+const char Wheel_pattern[] = "Pattern";
+const char Stimulate_mode[] = "Stim Mode";
 const char space_dash_space[] = " - ";
-const char linear_swept[] = "Linear Swept  ";
+const char linear_swept[] = "Linear Swept";
 const char comma_space[] = ", ";
 const char fixed_rpm[] = "Fixed RPM  ";
 const char Potentiometer[] = "Potentiometer";
 const char comma[] = ",";
-const char Degrees[] = "Degrees: ";
-const char RPM[] = "RPM: ";
+const char Degrees[] = "Degrees";
+const char RPM[] = "RPM";
 
 //! Initializes the serial port and sets up the Menu
 /*!
@@ -117,25 +118,26 @@ void commandParser()
 
   switch (currentCommand)
   {
-    case 'a': //no-op
+    case 'a': // adc0 last value
       if (interactive_mode) {
-        strcpy(buf,no_op_ok);
-        Serial.println(buf);
+        Serial.print(adc0_value);
+        Serial.print(colon_space);
+        Serial.println(adc0);
       }
       break;
 
     case 'i': //Set interactive mode. Tottle on/off
       interactive_mode = !interactive_mode;
       if (interactive_mode) {
-        strcpy(buf,Interactive_mode);
-        Serial.println(buf);
+        Serial.println(Interactive_mode);
       }
       break;
 
     case 'h': // Help
+    case '?':
       if (interactive_mode) {
         Serial.println(Ardu_Stim_Commandline);
-        Serial.println(a_no_op);
+        Serial.println(adc0_text);
         Serial.println(i_interactive_mode);
         Serial.println(h_help);
         Serial.println(f_fixed_rpm);
@@ -173,6 +175,7 @@ void commandParser()
       }
       if(interactive_mode) {
         Serial.print(setting_fixed_rpm_to);
+        Serial.print(colon_space);
         Serial.println(wanted_rpm);
       }
       //wanted_rpm = 2000;
@@ -186,11 +189,13 @@ void commandParser()
 
     case 'C': //Show the current config
       Serial.print(Stimulate_mode);
+      Serial.print(colon_space);
       Serial.print(mode);
       Serial.print(space_dash_space);
       switch(mode) {
         case 0: // Linear swept
           Serial.print(linear_swept);
+          Serial.print(colon_space);
           Serial.print(sweep_low_rpm);
           Serial.print(comma_space);
           Serial.println(sweep_high_rpm);
@@ -210,15 +215,20 @@ void commandParser()
       }
 
       Serial.print(Which_wheel);
-      Serial.print(selected_wheel);
       Serial.print(colon_space);
+      Serial.print(selected_wheel);
+      Serial.print(comma_space);
       strcpy_P(buf,Wheels[selected_wheel].decoder_name);
       Serial.println(buf);
       numTeeth = pgm_read_word(Wheels[selected_wheel].wheel_max_edges);
       //PROGMEM_readAnything (&table[i], thisOne);
       Serial.print(Wheel_size);
+      Serial.print(colon_space);
+      Serial.print(numTeeth);
+      Serial.print(comma_space);
       Serial.println(Wheels[selected_wheel].wheel_max_edges);
       Serial.print(Wheel_pattern);
+      Serial.print(colon_space);
       for(x=0; x<Wheels[selected_wheel].wheel_max_edges; x++)
       {
         if(x != 0) { Serial.print(comma); }
@@ -229,10 +239,21 @@ void commandParser()
       Serial.println("");
       //2nd row of data sent is the number of degrees the wheel runs over (360 or 720 typically)
       Serial.print(Degrees);
+      Serial.print(colon_space);
       Serial.println(Wheels[selected_wheel].wheel_degrees);
       
       Serial.print(RPM);
+      Serial.print(colon_space);
       Serial.println(wanted_rpm);
+    
+      Serial.print(linear_swept);
+      Serial.print(sweep_low_rpm);
+      Serial.print(comma_space);
+      Serial.println(sweep_high_rpm);
+
+      Serial.print(adc0_value);
+      Serial.print(colon_space);
+      Serial.println(adc0);
       break;
       
     case 'L': // send the list of wheel names
@@ -263,6 +284,7 @@ void commandParser()
       }
       if (interactive_mode) {
         Serial.print(Stimulate_mode);
+        Serial.print(colon_space);      
         Serial.println(mode);
       }
       break;
