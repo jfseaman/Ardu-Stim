@@ -177,6 +177,7 @@ void commandParser()
         l = buf[1];
         wanted_rpm = word(h, l);
       }
+      if (wanted_rpm > set_rpm_cap) wanted_rpm = set_rpm_cap; // sanity check
       if(interactive_mode) {
         Serial.print(setting_fixed_rpm_to);
         Serial.print(colon_space);
@@ -399,7 +400,7 @@ void commandParser()
       if(buf[0] >= '0') {   // Sweep RPM value was sent in ascii
         for(uint16_t i=0; i < x; i++) {
 //          Serial.print(buf[i]);
-          if(buf[i] == ' ') {
+          if(buf[i] == ' ' || buf[i] == ',' ) {
 //            Serial.print(": delimeter found. Terminating string");
             buf[i] = 0;     // terminate the first parameter
             bp = buf+i+1;   // set the pointer to the second parameter

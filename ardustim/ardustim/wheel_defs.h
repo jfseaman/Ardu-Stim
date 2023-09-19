@@ -290,9 +290,9 @@
      0,0                   /* MISSING 36th tooth  */
    }; 
    
-  /* Standard ford/mazda and aftermarket 36-1 pattern, 50% duty cyctle during normal teeth */  
+  /* Standard ford/mazda and aftermarket 24-1 pattern, 50% duty cyctle during normal teeth */  
  const unsigned char twenty_four_minus_one[] PROGMEM = 
-   { /* 36-1 */
+   { /* 24-1 */
      1,0,1,0,1,0,  /* teeth 1-3 */
      1,0,1,0,1,0,  /* teeth 4-6 */
      1,0,1,0,1,0,  /* teeth 7-9 */
