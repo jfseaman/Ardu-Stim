@@ -504,16 +504,10 @@ void commandParser()
       }
       while(Serial.available() < 1) {} 
       buf[0] = Serial.read();
-      if(buf[0] >= '0'&& Serial.available()) {  // Value was sent in ascii because leading 0 or digit
+      if(buf[0] >= '0' && interactive_mode) {  // Value was sent in ascii because leading 0 or digit
         buf[1] = Serial.read();
-        if (buf[1] > 13) {
-          buf[2] = 0;
-//          Serial.print(buf);
-//          progmem_print(comma_space);
-          tmp_wheel = strtoul(buf, NULL, 10);
-        } else {
-          tmp_wheel = buf[0];  
-        }
+        buf[2] = 0;
+        tmp_wheel = strtoul(buf, NULL, 10);
       } else {
         tmp_wheel = buf[0];
       }
