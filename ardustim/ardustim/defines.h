@@ -23,8 +23,8 @@
  
 /* defines */
 #define SWEEP_ISR_RATE 1000
-#define TMP_RPM_SHIFT 4 /* x16, 0-16384 RPM via pot */
-#define TMP_RPM_CAP 16384 /* MAX RPM via pot control */
+#define TMP_RPM_SHIFT 5 /* x16, 0-32768 RPM via pot */
+#define TMP_RPM_CAP 32768 /* MAX RPM control from TunerStudio */
 #define FACTOR_THRESHOLD 1000000
 #define MORE_LINEAR_SWEEP 1
 #define SUI_NO_INCLUDE_EXTRA_SAFETYCHECKS
