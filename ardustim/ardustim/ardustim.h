@@ -35,9 +35,11 @@ uint16_t get_rpm_from_tcnt(uint16_t *, uint8_t *);
 uint8_t get_bitshift_from_prescaler(uint8_t *);
 void get_prescaler_bits(uint32_t *, uint8_t *, uint8_t *);
 
-extern volatile uint8_t mode;
-extern volatile uint16_t set_rpm_cap;
-extern volatile uint8_t set_rpm_shift;
+extern volatile uint8_t   mode;           //Cranking signal mode
+extern volatile uint16_t  set_rpm_cap;    //Cranking signal limit
+extern volatile uint8_t   set_rpm_shift;  //bits to shift analog signal to scale for total rpm range. A function of set_rpm_cap
+extern volatile uint16_t  set_rpm_idle;   //Idle speed so TPM vs idle are different which is more normal
+extern volatile uint8_t   set_rpm_crank;  //Idle speed so TPM vs idle are different which is more normal
 
 /* Prototypes */
 

@@ -61,11 +61,18 @@ byte currentCommand;
 bool interactive_mode=false;
 byte tempByte;
 char buf[BUFFER_SIZE];
+byte h,l;   // high byte, low byte of incoming binary parameter
+uint16_t x; // index into buf
+char *bp;   // pointer into buf that marks second parameter
+byte tmp_wheel;
+byte tmp_mode;
+uint16_t size_of_wheel_def; // In interactive mode add the size of the wheel definition 
 
 // The command line help text strings
 const char Ardu_Stim_Commandline[] PROGMEM = "Ardu-Stim Command line";
 const char adc0_text[] PROGMEM = "a = ADC0 value";
 const char i_interactive_mode[] PROGMEM = "i = interactive mode";
+const char I_idle_speed[] PROGMEM = "I = Set idle speed";
 const char h_help[] PROGMEM = "h,? = This help";
 const char f_fixed_rpm[] PROGMEM = "f = fixed rpm";
 const char c_save_configuration[] PROGMEM = "c = Save config";
@@ -77,6 +84,7 @@ const char n_number_of_wheels[] PROGMEM = "n = # of wheels";
 const char N_number_of_current_wheel[] PROGMEM = "N = # of the current wheel";
 const char p_size_of_wheel[] PROGMEM = "p = Size of wheel in edges";
 const char P_pattern[] PROGMEM = "P = Pattern of wheel";
+const char r_crank[] PROGMEM = "r = Run";
 const char R_rpm[] PROGMEM = "R = RPM";
 const char s_sweep_mode[] PROGMEM = "s = set low,high for sweep";
 const char S_set_wheel[] PROGMEM = "S## = set the wheel, use leading 0 in ascii";
@@ -92,6 +100,7 @@ const char Stimulate_mode[] PROGMEM = "Stim Mode";
 const char space_dash_space[] PROGMEM = " - ";
 const char linear_swept[] PROGMEM = "Linear Sweep";
 const char fixed_rpm[] PROGMEM = "Fixed RPM  ";
+const char idle_rpm[] PROGMEM = "Idle RPM  ";
 const char Potentiometer[] PROGMEM = "Potentiometer";
 const char to_space[] PROGMEM = "to ";
 const char setting[] PROGMEM = "Set ";
@@ -101,6 +110,8 @@ const char comma[] PROGMEM = ",";
 const char Degrees[] PROGMEM = "Degrees";
 const char RPM[] PROGMEM = "RPM";
 const char RPM_MAX[] PROGMEM = "Max RPM ";
+const char RPM_IDLE[] PROGMEM = "Idle RPM ";
+const char RPM_RUN[] PROGMEM = "Running";
 const char saving_configuration[] PROGMEM = "Saving configuration ";
 const char done[] PROGMEM = "done.";
 const char show_configuration[] PROGMEM = "Current configuration";
@@ -128,13 +139,28 @@ void progmem_println(const char *progmem_string) {  // println PROGMEM string
   Serial.println(buf);
 }
 
+uint16_t read_uint16() { // read the incoming serial bytes. If binary return value of the 2 bytes, if ASCII parse and return
+  while(Serial.available() < 2) {delay(1);} //Wait for the new RPM bytes, 2 if binary, more if ascii.
+  buf[0] = Serial.read();
+  buf[1] = Serial.read();
+  if(buf[0] >= '0' && Serial.available()) {  // Idle RPM value was sent in ascii
+    //Retrieve and parse ASCII to set_rpm_idle
+    for(x=2;Serial.available() > 0; ++x) {
+      buf[x] = Serial.read();
+    }
+    buf[x] = 0;
+//    Serial.println(buf);
+    return strtoul(buf, NULL, 10);
+  } else {
+    h = buf[0];
+    l = buf[1];
+    return word(h, l);
+  }
+}
+
 void commandParser()
 {
-  char *bp;
-  byte tmp_wheel;
-  byte tmp_mode;
-  byte h,l;
-  uint16_t x;
+
   if (cmdPending == false) { currentCommand = Serial.read(); }
 
   switch (currentCommand)
@@ -154,12 +180,25 @@ void commandParser()
       }
       break;
 
+    case 'I': //Set the idle RPM value
+      set_rpm_idle = read_uint16();
+      if (set_rpm_idle > set_rpm_cap) set_rpm_idle = set_rpm_cap; // sanity check
+      if(interactive_mode) {
+        progmem_print(setting);
+        progmem_print(idle_rpm);
+        progmem_print(to_space);
+        progmem_print(colon_space);
+        Serial.println(set_rpm_idle);
+      }
+      break;
+
     case 'h': // Help
     case '?':
       if (interactive_mode) {
         progmem_println(Ardu_Stim_Commandline);
         progmem_println(adc0_text);
         progmem_println(i_interactive_mode);
+        progmem_println(I_idle_speed);
         progmem_println(h_help);
         progmem_println(f_fixed_rpm);
         progmem_println(c_save_configuration);
@@ -171,30 +210,18 @@ void commandParser()
         progmem_println(N_number_of_current_wheel);
         progmem_println(p_size_of_wheel);
         progmem_println(P_pattern);
+        progmem_println(r_crank);
         progmem_println(R_rpm);
         progmem_println(s_sweep_mode);
         progmem_println(S_set_wheel);
 //        progmem_println(X_set_next_wheel);
       }
       break;
+
+
     case 'f': //Set the fixed RPM value
       mode = FIXED_RPM;
-      while(Serial.available() < 2) {delay(1);} //Wait for the new RPM bytes, 2 if binary, more if ascii.
-      buf[0] = Serial.read();
-      buf[1] = Serial.read();
-      if(buf[0] >= '0' && Serial.available()) {  // Fixed RPM value was sent in ascii
-        //Retrieve and parse fixed ASCII to wanted_rpm
-        for(x=2;Serial.available() > 0; ++x) {
-          buf[x] = Serial.read();
-        }
-        buf[x] = 0;
-//        Serial.println(buf);
-        wanted_rpm = strtoul(buf, NULL, 10);
-      } else {
-        h = buf[0];
-        l = buf[1];
-        wanted_rpm = word(h, l);
-      }
+      wanted_rpm = read_uint16();
       if (wanted_rpm > set_rpm_cap) wanted_rpm = set_rpm_cap; // sanity check
       if(interactive_mode) {
         progmem_print(setting);
@@ -281,7 +308,15 @@ void commandParser()
       progmem_print(comma_space);
       progmem_print(RPM);
       progmem_print(colon_space);
-      Serial.println(wanted_rpm);
+      Serial.print(wanted_rpm);
+      progmem_print(comma_space);
+      progmem_print(RPM_IDLE);
+      progmem_print(colon_space);
+      Serial.println(set_rpm_idle);
+
+      progmem_print(RPM_RUN);
+      progmem_print(colon_space);
+      Serial.println(set_rpm_crank);
     
       progmem_print(linear_swept);
       progmem_print(colon_space);
@@ -306,27 +341,20 @@ void commandParser()
           progmem_print(colon_space);
         }
         strcpy_P(buf,Wheels[x].decoder_name);
-        Serial.println(buf);
+        Serial.print(buf);
+        if (interactive_mode) { // Print the size of the wheel definition
+          progmem_print(colon_space);
+          size_of_wheel_def = sizeof( float /*_wheels.rpm_scaler */) + sizeof(uint16_t /*_wheels.wheel_max_edges */) + sizeof(uint16_t /* _wheels.wheel_degrees */) + strlen(buf) + Wheels[x].wheel_max_edges;
+          Serial.print(size_of_wheel_def);
+        }
+        Serial.println("");
       }
       break;
 
     case 'm': //Set the max RPM value
-      while(Serial.available() < 2) {delay(1);} //Wait for the new RPM bytes, 2 if binary, more if ascii.
-      buf[0] = Serial.read();
-      buf[1] = Serial.read();
-      if(buf[0] >= '0' && Serial.available()) {  // Max RPM value was sent in ascii
-        //Retrieve and parse fixed ASCII to set_rpm_max
-        for(x=2;Serial.available() > 0; ++x) {
-          buf[x] = Serial.read();
-        }
-        buf[x] = 0;
-//        Serial.println(buf);
-        set_rpm_cap = strtoul(buf, NULL, 10);
-      } else {
-        h = buf[0];
-        l = buf[1];
-        set_rpm_cap = word(h, l);
-      }
+      // read in the new rpm limit
+      set_rpm_cap = read_uint16();
+ 
       if (set_rpm_cap < 1024) set_rpm_cap = 1024; // Do not allow max rpm less than 1024 because no engine will have that and the tps value from the pot is that
       if (set_rpm_cap > TMP_RPM_CAP) set_rpm_cap = TMP_RPM_CAP; // make sure we are below uint...
       
@@ -414,7 +442,7 @@ void commandParser()
         progmem_print(Wheel_pattern);
         progmem_print(colon_space);
       }
-      for(uint16_t x=0; x<Wheels[selected_wheel].wheel_max_edges; x++)
+      for(x=0; x<Wheels[selected_wheel].wheel_max_edges; x++)
       {
         if(x != 0) { progmem_print(comma); }
 
@@ -430,6 +458,15 @@ void commandParser()
       Serial.println(Wheels[selected_wheel].wheel_degrees);
       break;
 
+    case 'r': //Run mode. Tottle on/off
+      set_rpm_crank = !set_rpm_crank;
+      if (interactive_mode) {
+        progmem_print(RPM_RUN);
+        progmem_print(colon_space);
+        Serial.println(set_rpm_crank);
+      }
+      break;
+      
     case 'R': //Send the current RPM
       if (interactive_mode) {
         progmem_print(RPM);
@@ -502,6 +539,7 @@ void commandParser()
         progmem_print(setting_wheel);
         progmem_print(to_space);
       }
+      // Can't use read_uint16() here because of special logic. Binary parameter could also be = '0' so has to have check for interactive mode
       while(Serial.available() < 1) {} 
       buf[0] = Serial.read();
       if(buf[0] >= '0' && interactive_mode) {  // Value was sent in ascii because leading 0 or digit

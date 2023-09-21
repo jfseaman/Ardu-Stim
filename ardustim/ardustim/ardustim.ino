@@ -41,25 +41,28 @@ volatile bool adc0_read_complete = false;
 volatile bool adc1_read_complete = false;
 volatile bool reset_prescaler = false;
 volatile bool normal = true;
-volatile bool sweep_reset_prescaler = true; /* Force sweep to reset prescaler value */
-volatile bool sweep_lock = false;
-volatile uint8_t output_invert_mask = 0x00; /* Don't invert anything */
-volatile uint8_t sweep_direction = ASCENDING;
-volatile byte total_sweep_stages = 0;
-volatile uint8_t sweep_stage = 0;
-volatile uint8_t prescaler_bits = 0;
-volatile uint8_t last_prescaler_bits = 0;
-volatile uint8_t mode = 0;
-volatile uint16_t set_rpm_cap = TMP_RPM_CAP;  // Adjustable max rpm
-volatile uint8_t set_rpm_shift = TMP_RPM_SHIFT; // Adjustable rpm shift for use with adjustable max
-volatile uint16_t new_OCR1A = 5000; /* sane default */
-volatile uint16_t edge_counter = 0;
+volatile bool       sweep_reset_prescaler = true; /* Force sweep to reset prescaler value */
+volatile bool       sweep_lock = false;
+volatile uint8_t    output_invert_mask = 0x00; /* Don't invert anything */
+volatile uint8_t    sweep_direction = ASCENDING;
+volatile byte       total_sweep_stages = 0;
+volatile uint8_t    sweep_stage = 0;
+volatile uint8_t    prescaler_bits = 0;
+volatile uint8_t    last_prescaler_bits = 0;
+volatile uint16_t   new_OCR1A = 5000; /* sane default */
+volatile uint16_t   edge_counter = 0;
+volatile uint8_t    mode = 0;
+volatile uint16_t   set_rpm_cap = TMP_RPM_CAP;  // Adjustable max rpm
+volatile uint8_t    set_rpm_shift = TMP_RPM_SHIFT; // Adjustable rpm shift for use with adjustable max
+volatile uint16_t   set_rpm_idle;   //Idle speed so TPM vs idle are different which is more normal
+volatile uint8_t    set_rpm_crank;  //enable or disable cranking in POT mode, handled in loop()
 
 /* Less sensitive globals */
 uint8_t bitshift = 0;
 uint16_t sweep_low_rpm = 250;
 uint16_t sweep_high_rpm = 4000;
-uint16_t sweep_rate = 1;                               
+uint16_t sweep_rate = 1;   
+uint16_t tmp_rpm = 0;                            
 
 sweep_step *SweepSteps;  /* Global pointer for the sweep steps */
 
@@ -399,21 +402,26 @@ ISR(TIMER1_COMPA_vect) {
 
 void loop() 
 {
-  uint16_t tmp_rpm = 0;
   /* Just handle the Serial UI, everything else is in 
    * interrupt handlers or callbacks from SerialUI.
    */
-
-
   if(Serial.available() > 0) { commandParser(); }
 
   if(mode == POT_RPM)
   {
-    if (adc0_read_complete == true)
-    {
+    if (adc0_read_complete == true) {
       adc0_read_complete = false;
       tmp_rpm = adc0 << set_rpm_shift;
-      if (tmp_rpm > set_rpm_cap) { tmp_rpm = set_rpm_cap; }
+      if (set_rpm_idle) {
+        if (adc0) {
+          tmp_rpm += set_rpm_idle; // Since we have an idle value, add the idle value to the tmp_rpm computed from shifting adc0 to that it works like a real engine
+        } else {
+          tmp_rpm = set_rpm_idle; // There is no TPS so rpm is set to idle
+        }
+      }
+      if (tmp_rpm > set_rpm_cap) tmp_rpm = set_rpm_cap;  // limits check rom
+      if (!set_rpm_crank) tmp_rpm = 0;                   // not cranking yet.
+      
       wanted_rpm = tmp_rpm;
       reset_new_OCR1A(tmp_rpm);
     }
