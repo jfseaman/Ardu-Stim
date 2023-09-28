@@ -64,9 +64,11 @@ char buf[BUFFER_SIZE];
 byte h,l;   // high byte, low byte of incoming binary parameter
 uint16_t x; // index into buf
 char *bp;   // pointer into buf that marks second parameter
+uint16_t bl;  // length of string in buf
 byte tmp_wheel;
 byte tmp_mode;
 uint16_t size_of_wheel_def; // In interactive mode add the size of the wheel definition 
+uint16_t total_size_wheel_defs; // The total Flash and RAM taken up by wheel definitions
 
 // The command line help text strings
 const char Ardu_Stim_Commandline[] PROGMEM = "Ardu-Stim Command line";
@@ -117,6 +119,9 @@ const char done[] PROGMEM = "done.";
 const char show_configuration[] PROGMEM = "Current configuration";
 const char Max_Wheels[] PROGMEM = "Number of wheel definitions";
 const char setting_wheel[] PROGMEM = "Setting wheel ";
+const char space_plus_space[] PROGMEM = " + ";
+const char space_equal_space[] PROGMEM = " = ";
+const char wheel_defs_space[] PROGMEM = "Space used";
 
 //! Initializes the serial port and sets up the Menu
 /*!
@@ -332,7 +337,8 @@ void commandParser()
     case 'L': // send the list of wheel names
       //First byte sent is the number of wheels
       //Serial.println(MAX_WHEELS);
-      
+
+      total_size_wheel_defs = 0;
       //Wheel names are then sent 1 per line
       for(byte x=0;x<MAX_WHEELS;x++)
       {
@@ -341,14 +347,29 @@ void commandParser()
           progmem_print(colon_space);
         }
         strcpy_P(buf,Wheels[x].decoder_name);
+        bl = strlen(buf);
         Serial.print(buf);
         if (interactive_mode) { // Print the size of the wheel definition
+          size_of_wheel_def = bl + Wheels[x].wheel_max_edges + sizeof( float /*_wheels.rpm_scaler */) + sizeof(uint16_t /*_wheels.wheel_max_edges */) + sizeof(uint16_t /* _wheels.wheel_degrees */);
+          total_size_wheel_defs += size_of_wheel_def; // Sum up total space used by wheel definitions
           progmem_print(colon_space);
-          size_of_wheel_def = sizeof( float /*_wheels.rpm_scaler */) + sizeof(uint16_t /*_wheels.wheel_max_edges */) + sizeof(uint16_t /* _wheels.wheel_degrees */) + strlen(buf) + Wheels[x].wheel_max_edges;
+          Serial.print(bl);          
+          progmem_print(space_plus_space);
+          Serial.print(Wheels[x].wheel_max_edges);
+          progmem_print(space_plus_space);
+          Serial.print(sizeof(float));
+          progmem_print(space_plus_space);
+          Serial.print(sizeof(uint16_t));
+          progmem_print(space_plus_space);
+          Serial.print(sizeof(uint16_t));
+          progmem_print(space_equal_space);
           Serial.print(size_of_wheel_def);
         }
         Serial.println("");
       }
+      progmem_print(wheel_defs_space);
+      progmem_print(colon_space);
+      Serial.println(total_size_wheel_defs);
       break;
 
     case 'm': //Set the max RPM value
@@ -615,15 +636,15 @@ void display_new_wheel()
  * re-calculate the OCR1A value (RPM) and reset, return user information on the
  * selected wheel and current RPM
  */
-void select_next_wheel_cb()
-{
-  if (selected_wheel == (MAX_WHEELS-1))
-    selected_wheel = 0;
-  else 
-    selected_wheel++;
-  
-  display_new_wheel();
-}
+//void select_next_wheel_cb()
+//{
+//  if (selected_wheel == (MAX_WHEELS-1))
+//    selected_wheel = 0;
+//  else 
+//    selected_wheel++;
+//  
+//  display_new_wheel();
+//}
 
 //
 //! Selects the previous wheel in the list
@@ -632,15 +653,15 @@ void select_next_wheel_cb()
  * re-calculate the OCR1A value (RPM) and reset, return user information on the
  * selected wheel and current RPM
  */
-void select_previous_wheel_cb()
-{
-  if (selected_wheel == 0)
-    selected_wheel = MAX_WHEELS-1;
-  else 
-    selected_wheel--;
-  
-  display_new_wheel();
-}
+//void select_previous_wheel_cb()
+//{
+//  if (selected_wheel == 0)
+//    selected_wheel = MAX_WHEELS-1;
+//  else 
+//    selected_wheel--;
+//  
+//  display_new_wheel();
+//}
 
 
 //! Changes the RPM based on user input
@@ -673,8 +694,8 @@ void setRPM(uint32_t newRPM)
  * Reverses the emitting wheel pattern direction.  Used mainly as a debugging aid
  * in case the wheel pattern was coded incorrectly in reverse.
  */
-void reverse_wheel_direction_cb()
-{
+//void reverse_wheel_direction_cb()
+//{
   /*
     mySUI.print_P(wheel_direction_colon_space);
     if (normal)
@@ -688,7 +709,7 @@ void reverse_wheel_direction_cb()
       mySUI.println_P(normal_);
     }
     */
-}
+//}
 
 
 //! Parses input from user and setups up RPM sweep
@@ -706,24 +727,24 @@ void reverse_wheel_direction_cb()
  * we use this to keep things as quick as possible. This function takes
  * no parameters (it cannot due to SerialUI) and returns void
  */
-void sweep_rpm_cb(uint16_t tmp_low_rpm, uint16_t tmp_high_rpm)
-{
-  
-//  char sweep_buffer[20] = {0};
-
-  // Validate input ranges
-  if (
-      (tmp_low_rpm >= 10) &&
-      (tmp_high_rpm < 51200) &&
-      (sweep_rate >= 1) &&
-      (sweep_rate < 51200) &&
-      (tmp_low_rpm < tmp_high_rpm))
-  {
-
-  compute_sweep_stages(&tmp_low_rpm, &tmp_high_rpm);
-  }
-
-}
+//void sweep_rpm_cb(uint16_t tmp_low_rpm, uint16_t tmp_high_rpm)
+//{
+//  
+////  char sweep_buffer[20] = {0};
+//
+//  // Validate input ranges
+//  if (
+//      (tmp_low_rpm >= 10) &&
+//      (tmp_high_rpm < 51200) &&
+//      (sweep_rate >= 1) &&
+//      (sweep_rate < 51200) &&
+//      (tmp_low_rpm < tmp_high_rpm))
+//  {
+//
+//  compute_sweep_stages(&tmp_low_rpm, &tmp_high_rpm);
+//  }
+//
+//}
 
 
 void compute_sweep_stages(uint16_t *tmp_low_rpm, uint16_t *tmp_high_rpm)
